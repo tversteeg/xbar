@@ -6,6 +6,11 @@
 #include <string.h>
 #include <unistd.h>
 
+#define DEFAULT_CONFIG "~/.config/barrc"
+#define DEFAULT_WIDTH 800
+#define DEFAULT_HEIGHT 16
+#define DEFAULT_FONT "-*-terminus-*-r-*-*-16-*-*-*-*-*-*-*"
+
 Window win;
 Display *disp;
 GC gc;
@@ -62,7 +67,7 @@ int create_bar(int width, int height, char *back_color, char *font_name)
 
 	font = XLoadQueryFont(disp, font_name);
 	if(!font){
-		fprintf(stderr, "Unable to load font %s, using fixed\n", font_name);
+		fprintf(stderr, "Unable to load font \"%s\", using default font\n", font_name);
 		font = XLoadQueryFont(disp, "fixed");
 	}
 	XSetFont(disp, gc, font->fid);
@@ -96,24 +101,46 @@ int sys_output(char **buf, char *command)
 
 int main(int argc, char **argv)
 {
-	char config_path[256] = "~/.config/barrc";
-	char *command = NULL, *output = NULL;
-	int opt, len, verbose = 0, ready = 0, delay = 1;
-	int width = 800, height = 16;
+	char config_path[256], font[256], *command, *output;
+	int opt, len, verbose, ready, delay, width, height;
 
-	while((opt = getopt(argc, argv, "hvd:c:s:p:")) != -1){
+	command = output = NULL;
+	verbose = ready = 0;
+	delay = 1;
+	width = DEFAULT_WIDTH;
+	height = DEFAULT_HEIGHT;
+
+	while((opt = getopt(argc, argv, "hvd:e:s:p:f:")) != -1){
 		switch(opt){
+			case 'f':
+				if(verbose){
+					printf("Font:\t\t\"%s\"\n", optarg);
+				}
+				strcpy(font, optarg);
+				break;
 			case 'p':
+				if(verbose){
+					printf("Config file:\t\"%s\"\n", optarg);
+				}
 				strcpy(config_path, optarg);
 				break;
 			case 's':
+				if(verbose){
+					printf("Size:\t\t\"%s\"\n", optarg);
+				}
 				sscanf(optarg, "%dx%d", &width, &height);
 				break;
-			case 'c':
+			case 'e':
+				if(verbose){
+					printf("Command:\t\"%s\"\n", optarg);
+				}
 				command = malloc(strlen(optarg));
 				strcpy(command, optarg);
 				break;
 			case 'd':
+				if(verbose){
+					printf("Refresh delay:\t%s seconds", optarg);
+				}
 				delay = atoi(optarg);
 				break;
 			case 'v':
@@ -121,15 +148,16 @@ int main(int argc, char **argv)
 				break;
 			case 'h':
 				printf("Usage:\n"
-						"\tbar [-h][-v][-d int][-c str]"
-						"[-s intxint][-p str]\n\n"
+						"\tbar [-h][-v][-d int][-e str]"
+						"[-s intxint][-p str][-f str]\n\n"
 
 						"\t[-h]\t\tshow help\n"
 						"\t[-v]\t\tshow verbose output\n"
-						"\t[-d int]\tset the delay in seconds\n"
-						"\t[-c str]\tset the command to execute\n"
+						"\t[-d int]\tset the refresh delay in seconds\n"
+						"\t[-e str]\tset the command to execute\n"
 						"\t[-s intxint]\tset the width and the height\n"
 						"\t[-p str]\tset the path for the config file\n"
+						"\t[-f str]\tset the font using the X font style\n"
 						);
 				return 0;
 			case '?':
@@ -139,16 +167,15 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if(verbose){
-		printf("Setting bar size to %dx%d\n", width, height);
-		printf("Reading configuration file: \"%s\"\n", config_path);
+	if(config_path == NULL){
+		// Using default directory
+		strcpy(config_path, DEFAULT_CONFIG);
+	}
+	if(font == NULL){
+		strcpy(font, DEFAULT_FONT);
 	}
 
-	if(command){
-		printf("Performing command: \"%s\"\n", command);
-	}
-
-	create_bar(width, height, "#CCCCCC", "-*-terminus-*-r-*-*-16-*-*-*-*-*-*-*");
+	create_bar(width, height, "#CCCCCC", font);
 
 	while(!ready){
 		XEvent e;
@@ -168,6 +195,8 @@ int main(int argc, char **argv)
 	XFreeGC(disp, gc);
 	XUnmapWindow(disp, win);
 	XCloseDisplay(disp);
+
+	free(command);
 
 	return 0;
 }
