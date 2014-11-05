@@ -7,4 +7,4 @@ The `libx11-dev` library is required to build.
 
 Example:
 
-`./bar -c "echo \$(date +%T)"`
+`./bar -e "echo \$(date +%T)"`
