@@ -3,11 +3,35 @@
 #include <string.h>
 #include <unistd.h>
 
+int sys_output(char **buf, char *command)
+{
+	FILE *fp;
+	char output[1035];
+	int size;
+
+	fp = popen(command, "r");
+	if(fp == NULL){
+		fprintf(stderr, "Failed to run command: %s\n", command);
+		exit(1);
+	}
+
+	fgets(output, sizeof(output) - 1, fp);
+
+	size = strlen(output);
+	*buf = malloc(size);
+	strcpy(*buf, output);
+	(*buf)[size - 1] = '\0';
+
+	fclose(fp);
+
+	return size;
+}
+
 int main(int argc, char **argv)
 {
 	char config_path[256] = "~/.config/barrc";
-	char *command = NULL;
-	int opt, verbose = 0;
+	char *command = NULL, *output = NULL;
+	int opt, len, verbose = 0;
 
 	while((opt = getopt(argc, argv, "vc:p:")) != -1){
 		switch(opt){
@@ -36,8 +60,12 @@ int main(int argc, char **argv)
 		if(verbose){
 			printf("Executing command: \"%s\"\n", command);
 		}
-		system(command);
+		
+		len = sys_output(&output, command);
 		free(command);
+
+		printf("Output: %s\n", output);
+		free(output);
 	}
 
 	return 0;
