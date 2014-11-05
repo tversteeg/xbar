@@ -176,6 +176,7 @@ int main(int argc, char **argv)
 	}
 
 	if(config_path == NULL){
+		printf("Default config file: \"" DEFAULT_CONFIG "\"");
 		// Use default directory
 		strcpy(config_path, DEFAULT_CONFIG);
 	}
