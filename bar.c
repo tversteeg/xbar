@@ -147,5 +147,9 @@ int main(int argc, char **argv)
 		sleep(delay);
 	}
 
+	XFreeGC(disp, gc);
+	XUnmapWindow(disp, win);
+	XCloseDisplay(disp);
+
 	return 0;
 }
