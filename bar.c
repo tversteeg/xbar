@@ -23,6 +23,7 @@ int draw_bar(int width, int height, char *text, int len)
 
 	XClearWindow(disp, win);
 	XDrawString(disp, win, gc, x, y, text, len);
+	XSync(disp, True);
 
 	return 0;
 }
@@ -57,7 +58,7 @@ int create_bar(int width, int height, char *back_color, char *font_name)
 
 	gc = XCreateGC(disp, win, 0, 0);
 	XSetBackground(disp, gc, color.pixel);
-	XSetForeground(disp, gc, WhitePixel(disp, 0));
+	XSetForeground(disp, gc, BlackPixel(disp, 0));
 
 	font = XLoadQueryFont(disp, font_name);
 	if(!font){
@@ -97,9 +98,9 @@ int main(int argc, char **argv)
 {
 	char config_path[256] = "~/.config/barrc";
 	char *command = NULL, *output = NULL;
-	int opt, len, verbose = 0, ready = 0;
+	int opt, len, verbose = 0, ready = 0, delay = 1;
 
-	while((opt = getopt(argc, argv, "vc:p:")) != -1){
+	while((opt = getopt(argc, argv, "vd:c:p:")) != -1){
 		switch(opt){
 			case 'p':
 				strcpy(config_path, optarg);
@@ -107,6 +108,9 @@ int main(int argc, char **argv)
 			case 'c':
 				command = malloc(strlen(optarg));
 				strcpy(command, optarg);
+				break;
+			case 'd':
+				delay = atoi(optarg);
 				break;
 			case 'v':
 				verbose = 1;
@@ -138,9 +142,9 @@ int main(int argc, char **argv)
 
 	while(1){
 		len = sys_output(&output, command);
-		draw_bar(1280, 16, output, len);
+		draw_bar(1280, 16, output, len - 1);
 		free(output);
-		sleep(1);
+		sleep(delay);
 	}
 
 	return 0;
