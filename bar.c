@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 	int opt, len, verbose = 0, ready = 0, delay = 1;
 	int width = 800, height = 16;
 
-	while((opt = getopt(argc, argv, "vd:c:s:p:")) != -1){
+	while((opt = getopt(argc, argv, "hvd:c:s:p:")) != -1){
 		switch(opt){
 			case 'p':
 				strcpy(config_path, optarg);
@@ -119,6 +119,19 @@ int main(int argc, char **argv)
 			case 'v':
 				verbose = 1;
 				break;
+			case 'h':
+				printf("Usage:\n"
+						"\tbar [-h][-v][-d int][-c str]"
+						"[-s intxint][-p str]\n\n"
+
+						"\t[-h]\t\tshow help\n"
+						"\t[-v]\t\tshow verbose output\n"
+						"\t[-d int]\tset the delay in seconds\n"
+						"\t[-c str]\tset the command to execute\n"
+						"\t[-s intxint]\tset the width and the height\n"
+						"\t[-p str]\tset the path for the config file\n"
+						);
+				return 0;
 			case '?':
 				return 1;
 			default:
