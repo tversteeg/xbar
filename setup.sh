@@ -1,3 +1,3 @@
 #!/bin/bash
 
-gcc bar.c -o bar -Wall
+gcc bar.c -o bar -Wall -lX11

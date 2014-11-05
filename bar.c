@@ -1,7 +1,73 @@
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+Window win;
+Display *disp;
+GC gc;
+XFontStruct *font;
+
+int draw_bar(int width, int height, char *text, int len)
+{
+	int x, y, direction, ascent, descent;
+	XCharStruct overall;
+
+	XTextExtents(font, text, len, &direction, &ascent, &descent, &overall);
+
+	x = (width - overall.width) >> 1;
+	y = (height >> 1) + ((ascent - descent) >> 1);
+
+	XClearWindow(disp, win);
+	XDrawString(disp, win, gc, x, y, text, len);
+
+	return 0;
+}
+
+int create_bar(int width, int height, char *back_color, char *font_name)
+{
+	Atom WM_WINDOW_TYPE, WM_WINDOW_TYPE_DOCK;
+	XColor color;
+	Colormap colormap;
+	int screen;
+
+	disp = XOpenDisplay(NULL);
+	screen = DefaultScreen(disp);
+
+	WM_WINDOW_TYPE = XInternAtom(disp, "_NET_WM_WINDOW_TYPE", False);
+	WM_WINDOW_TYPE_DOCK = XInternAtom(disp, "_NET_WM_WINDOW_TYPE_DOCK", False);
+
+	colormap = DefaultColormap(disp, 0);
+	XParseColor(disp, colormap, back_color, &color);
+	XAllocColor(disp, colormap, &color);	
+
+	win = XCreateSimpleWindow(disp, RootWindow(disp, screen), 0, 0, 
+			width, height, 0, WhitePixel(disp, 0),  color.pixel);
+
+	XChangeProperty(disp, win, WM_WINDOW_TYPE, XA_ATOM, 32,
+			PropModeReplace, (unsigned char*)&WM_WINDOW_TYPE_DOCK, 1);
+
+	XSelectInput(disp, win, ExposureMask);
+
+	XMapWindow(disp, win);
+	XFlush(disp);
+
+	gc = XCreateGC(disp, win, 0, 0);
+	XSetBackground(disp, gc, color.pixel);
+	XSetForeground(disp, gc, WhitePixel(disp, 0));
+
+	font = XLoadQueryFont(disp, font_name);
+	if(!font){
+		fprintf(stderr, "Unable to load font %s, using fixed\n", font_name);
+		font = XLoadQueryFont(disp, "fixed");
+	}
+	XSetFont(disp, gc, font->fid);
+
+	return 0;
+}
 
 int sys_output(char **buf, char *command)
 {
@@ -31,7 +97,7 @@ int main(int argc, char **argv)
 {
 	char config_path[256] = "~/.config/barrc";
 	char *command = NULL, *output = NULL;
-	int opt, len, verbose = 0;
+	int opt, len, verbose = 0, ready = 0;
 
 	while((opt = getopt(argc, argv, "vc:p:")) != -1){
 		switch(opt){
@@ -56,16 +122,25 @@ int main(int argc, char **argv)
 		printf("Reading configuration file: \"%s\"\n", config_path);
 	}
 
-	if(command != NULL){
-		if(verbose){
-			printf("Executing command: \"%s\"\n", command);
-		}
-		
-		len = sys_output(&output, command);
-		free(command);
+	if(command){
+		printf("Performing command: \"%s\"\n", command);
+	}
 
-		printf("Output: %s\n", output);
+	create_bar(1280, 16, "#CCCCCC", "-*-terminus-*-r-*-*-16-*-*-*-*-*-*-*");
+
+	while(!ready){
+		XEvent e;
+		XNextEvent(disp, &e);
+		if(e.type == Expose) {
+			ready = 1;
+		}
+	}
+
+	while(1){
+		len = sys_output(&output, command);
+		draw_bar(1280, 16, output, len);
 		free(output);
+		sleep(1);
 	}
 
 	return 0;
