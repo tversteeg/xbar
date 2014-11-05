@@ -140,6 +140,7 @@ int main(int argc, char **argv)
 	}
 
 	if(verbose){
+		printf("Setting bar size to %dx%d\n", width, height);
 		printf("Reading configuration file: \"%s\"\n", config_path);
 	}
 
