@@ -99,11 +99,15 @@ int main(int argc, char **argv)
 	char config_path[256] = "~/.config/barrc";
 	char *command = NULL, *output = NULL;
 	int opt, len, verbose = 0, ready = 0, delay = 1;
+	int width = 800, height = 16;
 
-	while((opt = getopt(argc, argv, "vd:c:p:")) != -1){
+	while((opt = getopt(argc, argv, "vd:c:s:p:")) != -1){
 		switch(opt){
 			case 'p':
 				strcpy(config_path, optarg);
+				break;
+			case 's':
+				sscanf(optarg, "%dx%d", &width, &height);
 				break;
 			case 'c':
 				command = malloc(strlen(optarg));
@@ -130,7 +134,7 @@ int main(int argc, char **argv)
 		printf("Performing command: \"%s\"\n", command);
 	}
 
-	create_bar(1280, 16, "#CCCCCC", "-*-terminus-*-r-*-*-16-*-*-*-*-*-*-*");
+	create_bar(width, height, "#CCCCCC", "-*-terminus-*-r-*-*-16-*-*-*-*-*-*-*");
 
 	while(!ready){
 		XEvent e;
@@ -142,7 +146,7 @@ int main(int argc, char **argv)
 
 	while(1){
 		len = sys_output(&output, command);
-		draw_bar(1280, 16, output, len - 1);
+		draw_bar(width, height, output, len - 1);
 		free(output);
 		sleep(delay);
 	}
