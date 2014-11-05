@@ -7,4 +7,12 @@ The `libx11-dev` library is required to build.
 
 Example:
 
-`./bar -e "echo \$(date +%T)"`
+`xbar -e "echo \"xbar - \$(date +%T)\""`
+
+To install:
+
+`git clone https://github.com/tversteeg/xbar && cd xbar && sh setup.sh`
+
+To uninstall:
+
+`sudo rm /usr/bin/xbar`
