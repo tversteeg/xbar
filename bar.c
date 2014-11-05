@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#define DEFAULT_COMMAND "echo \"xbar - $(date +%T)\""
 #define DEFAULT_CONFIG "~/.config/barrc"
 #define DEFAULT_WIDTH 800
 #define DEFAULT_HEIGHT 16
@@ -33,7 +34,7 @@ int draw_bar(int width, int height, char *text, int len)
 	return 0;
 }
 
-int create_bar(int width, int height, char *back_color, char *font_name)
+int create_bar(int x, int y, int width, int height, char *back_color, char *font_name)
 {
 	Atom WM_WINDOW_TYPE, WM_WINDOW_TYPE_DOCK;
 	XColor color;
@@ -50,7 +51,7 @@ int create_bar(int width, int height, char *back_color, char *font_name)
 	XParseColor(disp, colormap, back_color, &color);
 	XAllocColor(disp, colormap, &color);	
 
-	win = XCreateSimpleWindow(disp, RootWindow(disp, screen), 0, 0, 
+	win = XCreateSimpleWindow(disp, RootWindow(disp, screen), x, y, 
 			width, height, 0, WhitePixel(disp, 0),  color.pixel);
 
 	XChangeProperty(disp, win, WM_WINDOW_TYPE, XA_ATOM, 32,
@@ -102,15 +103,15 @@ int sys_output(char **buf, char *command)
 int main(int argc, char **argv)
 {
 	char config_path[256], font[256], *command, *output;
-	int opt, len, verbose, ready, delay, width, height;
+	int opt, len, verbose, ready, delay, x, y, width, height;
 
 	command = output = NULL;
-	verbose = ready = 0;
+	verbose = ready = x = y = 0;
 	delay = 1;
 	width = DEFAULT_WIDTH;
 	height = DEFAULT_HEIGHT;
 
-	while((opt = getopt(argc, argv, "hvd:e:s:p:f:")) != -1){
+	while((opt = getopt(argc, argv, "hvd:e:s:l:p:f:")) != -1){
 		switch(opt){
 			case 'f':
 				if(verbose){
@@ -129,6 +130,12 @@ int main(int argc, char **argv)
 					printf("Size:\t\t\"%s\"\n", optarg);
 				}
 				sscanf(optarg, "%dx%d", &width, &height);
+				break;
+			case 'l':
+				if(verbose){
+					printf("Location:\t\"%s\"\n", optarg);
+				}
+				sscanf(optarg, "%dx%d", &x, &y);
 				break;
 			case 'e':
 				if(verbose){
@@ -156,6 +163,7 @@ int main(int argc, char **argv)
 						"\t[-d int]\tset the refresh delay in seconds\n"
 						"\t[-e str]\tset the command to execute\n"
 						"\t[-s intxint]\tset the width and the height\n"
+						"\t[-l intxint]\tset the location\n"
 						"\t[-p str]\tset the path for the config file\n"
 						"\t[-f str]\tset the font using the X font style\n"
 						);
@@ -168,14 +176,20 @@ int main(int argc, char **argv)
 	}
 
 	if(config_path == NULL){
-		// Using default directory
+		// Use default directory
 		strcpy(config_path, DEFAULT_CONFIG);
 	}
 	if(font == NULL){
+		// Use default font
 		strcpy(font, DEFAULT_FONT);
 	}
+	if(command == NULL){
+		// Use default command
+		command = malloc(sizeof(DEFAULT_COMMAND));
+		strcpy(command, DEFAULT_COMMAND);
+	}
 
-	create_bar(width, height, "#CCCCCC", font);
+	create_bar(x, y, width, height, "#CCCCCC", font);
 
 	while(!ready){
 		XEvent e;
