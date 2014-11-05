@@ -1,4 +1,4 @@
-bar
+xbar
 ===
 
 A simple X bar written in C using Xlib.
