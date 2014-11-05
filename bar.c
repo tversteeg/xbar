@@ -10,7 +10,7 @@
 #define DEFAULT_CONFIG "~/.config/barrc"
 #define DEFAULT_WIDTH 800
 #define DEFAULT_HEIGHT 16
-#define DEFAULT_FONT "-*-terminus-*-r-*-*-16-*-*-*-*-*-*-*"
+#define DEFAULT_FONT "-*-terminus-*-r-*-*-12-*-*-*-*-*-*-*"
 
 Window win;
 Display *disp;
@@ -102,7 +102,7 @@ int sys_output(char **buf, char *command)
 
 int main(int argc, char **argv)
 {
-	char config_path[256], font[256], *command, *output;
+	char config_path[256] = DEFAULT_CONFIG, font[256] = DEFAULT_FONT, *command, *output;
 	int opt, len, verbose, ready, delay, x, y, width, height;
 
 	command = output = NULL;
@@ -175,15 +175,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if(config_path == NULL){
-		printf("Default config file: \"" DEFAULT_CONFIG "\"");
-		// Use default directory
-		strcpy(config_path, DEFAULT_CONFIG);
-	}
-	if(font == NULL){
-		// Use default font
-		strcpy(font, DEFAULT_FONT);
-	}
 	if(command == NULL){
 		// Use default command
 		command = malloc(sizeof(DEFAULT_COMMAND));
