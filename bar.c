@@ -1,5 +1,6 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <libconfig.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +8,7 @@
 #include <unistd.h>
 
 #define DEFAULT_COMMAND "echo \"xbar - $(date +%T)\""
-#define DEFAULT_CONFIG "~/.config/barrc"
+#define DEFAULT_CONFIG "~/.config/xbar.cfg"
 #define DEFAULT_WIDTH 800
 #define DEFAULT_HEIGHT 16
 #define DEFAULT_FONT "-*-terminus-*-r-*-*-12-*-*-*-*-*-*-*"
@@ -104,6 +105,7 @@ int main(int argc, char **argv)
 {
 	char config_path[256] = DEFAULT_CONFIG, font[256] = DEFAULT_FONT, *command, *output;
 	int opt, len, verbose, ready, delay, x, y, width, height;
+	config_t cfg;
 
 	command = output = NULL;
 	verbose = ready = x = y = 0;
@@ -155,7 +157,7 @@ int main(int argc, char **argv)
 				break;
 			case 'h':
 				printf("Usage:\n"
-						"\tbar [-h][-v][-d int][-e str]"
+						"\txbar [-h][-v][-d int][-e str]"
 						"[-s intxint][-p str][-f str]\n\n"
 
 						"\t[-h]\t\tshow help\n"
@@ -173,6 +175,13 @@ int main(int argc, char **argv)
 			default:
 				break;
 		}
+	}
+
+	if(!config_read_file(&cfg, config_path)){
+		fprintf(stderr, "No config file could be found, using default settings");
+		config_destroy(&cfg);
+	}else{
+		
 	}
 
 	if(command == NULL){
