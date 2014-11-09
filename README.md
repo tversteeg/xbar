@@ -3,7 +3,7 @@ xbar
 
 A simple X bar written in C using Xlib.
 
-The `libx11-dev` library is required to build.
+The `libx11-dev` & `libconfig-dev` libraries are required to build.
 
 Example:
 
