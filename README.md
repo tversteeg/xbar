@@ -26,7 +26,6 @@ text = ( {
 		font = "fixed";
 		x = 0;
 		y = 0;
-		width = 1280;
 		align = "left";
 	}, {
 		command = "date +%T";
@@ -45,6 +44,9 @@ text = ( {
 	}
 );
 ```
+Which should create something like this (only bigger):
+
+![Screenshot](http://i.imgur.com/IAFWopF.png)
 
 Setup
 ===
