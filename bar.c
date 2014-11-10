@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #define DEFAULT_COMMAND "echo \"$(date +%T)\"" // Show the time in hh:mm:ss
-#define DEFAULT_CONFIG  "~/.config/xbar.cfg"
+#define DEFAULT_CONFIG  "/home/thomas/.config/xbar.cfg"
 #define DEFAULT_X       0
 #define DEFAULT_Y       0
 #define DEFAULT_WIDTH   800
