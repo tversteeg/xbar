@@ -7,75 +7,32 @@
 #include <string.h>
 #include <unistd.h>
 
-#define DEFAULT_COMMAND "echo \"xbar - $(date +%T)\""
-#define DEFAULT_CONFIG "~/.config/xbar.cfg"
-#define DEFAULT_WIDTH 800
-#define DEFAULT_HEIGHT 16
-#define DEFAULT_FONT "-*-terminus-*-r-*-*-12-*-*-*-*-*-*-*"
+#define DEFAULT_COMMAND "echo \"xbar - $(date +%T)\"" // Show the time in hh:mm:ss
+#define DEFAULT_CONFIG  "~/.config/xbar.cfg"
+#define DEFAULT_X       0
+#define DEFAULT_Y       0
+#define DEFAULT_WIDTH   800
+#define DEFAULT_HEIGHT  16
+#define DEFAULT_FONT    "fixed" // Default font
+#define DEFAULT_DELAY   1 // 1 second
+#define DEFAULT_ALIGN	1 // Middle
+#define DEFAULT_FGCOLOR "#FFFFFF"
+#define DEFAULT_BGCOLOR "#000000"
+
+typedef struct {
+	char *command, *font_name;
+	XFontStruct *font;
+	int x, y, width;
+	char align;
+} bar_text;
 
 Window win;
 Display *disp;
 GC gc;
-XFontStruct *font;
-
-int draw_bar(int width, int height, char *text, int len)
-{
-	int x, y, direction, ascent, descent;
-	XCharStruct overall;
-
-	XTextExtents(font, text, len, &direction, &ascent, &descent, &overall);
-
-	x = (width - overall.width) >> 1;
-	y = (height >> 1) + ((ascent - descent) >> 1);
-
-	XClearWindow(disp, win);
-	XDrawString(disp, win, gc, x, y, text, len);
-	XSync(disp, True);
-
-	return 0;
-}
-
-int create_bar(int x, int y, int width, int height, char *back_color, char *font_name)
-{
-	Atom WM_WINDOW_TYPE, WM_WINDOW_TYPE_DOCK;
-	XColor color;
-	Colormap colormap;
-	int screen;
-
-	disp = XOpenDisplay(NULL);
-	screen = DefaultScreen(disp);
-
-	WM_WINDOW_TYPE = XInternAtom(disp, "_NET_WM_WINDOW_TYPE", False);
-	WM_WINDOW_TYPE_DOCK = XInternAtom(disp, "_NET_WM_WINDOW_TYPE_DOCK", False);
-
-	colormap = DefaultColormap(disp, 0);
-	XParseColor(disp, colormap, back_color, &color);
-	XAllocColor(disp, colormap, &color);	
-
-	win = XCreateSimpleWindow(disp, RootWindow(disp, screen), x, y, 
-			width, height, 0, WhitePixel(disp, 0),  color.pixel);
-
-	XChangeProperty(disp, win, WM_WINDOW_TYPE, XA_ATOM, 32,
-			PropModeReplace, (unsigned char*)&WM_WINDOW_TYPE_DOCK, 1);
-
-	XSelectInput(disp, win, ExposureMask);
-
-	XMapWindow(disp, win);
-	XFlush(disp);
-
-	gc = XCreateGC(disp, win, 0, 0);
-	XSetBackground(disp, gc, color.pixel);
-	XSetForeground(disp, gc, BlackPixel(disp, 0));
-
-	font = XLoadQueryFont(disp, font_name);
-	if(!font){
-		fprintf(stderr, "Unable to load font \"%s\", using default font\n", font_name);
-		font = XLoadQueryFont(disp, "fixed");
-	}
-	XSetFont(disp, gc, font->fid);
-
-	return 0;
-}
+bar_text *strings;
+size_t strings_len;
+char *fg_color, *bg_color;
+int delay, x, y, width, height;
 
 int sys_output(char **buf, char *command)
 {
@@ -101,74 +58,144 @@ int sys_output(char **buf, char *command)
 	return size;
 }
 
+int draw_bars(int height)
+{
+	int i, x, y, direction, ascent, descent;
+	size_t len;
+	char *output;
+	XCharStruct overall;
+
+	output = NULL;
+
+	XClearWindow(disp, win);
+	for(i = 0; i < strings_len; i++){
+		len = sys_output(&output, strings[i].command);
+
+		XTextExtents(strings[i].font, output, len, &direction, &ascent, &descent, &overall);
+
+		x = strings[i].x;
+		y = strings[i].y + (height >> 1) + ((ascent - descent) >> 1);
+		if(strings[i].align == 1){
+			x = strings[i].x + (strings[i].width - overall.width) >> 1;
+		}else if(strings[i].align == 2){
+			x = strings[i]. x + strings[i].width - overall.width;
+		}
+
+		XDrawString(disp, win, gc, x, y, output, len);
+
+		free(output);
+	}
+	XSync(disp, True);
+
+	return 0;
+}
+
+int create_bar(int x, int y, int width, int height, char *font_color, char *back_color)
+{
+	Atom WM_WINDOW_TYPE, WM_WINDOW_TYPE_DOCK;
+	XColor back, font;
+	Colormap colormap;
+	int i, screen;
+
+	disp = XOpenDisplay(NULL);
+	screen = DefaultScreen(disp);
+
+	WM_WINDOW_TYPE = XInternAtom(disp, "_NET_WM_WINDOW_TYPE", False);
+	WM_WINDOW_TYPE_DOCK = XInternAtom(disp, "_NET_WM_WINDOW_TYPE_DOCK", False);
+
+	colormap = DefaultColormap(disp, 0);
+	XParseColor(disp, colormap, font_color, &font);
+	XAllocColor(disp, colormap, &font);	
+	XParseColor(disp, colormap, back_color, &back);
+	XAllocColor(disp, colormap, &back);	
+
+	win = XCreateSimpleWindow(disp, RootWindow(disp, screen), x, y, 
+			width, height, 0, font.pixel,  back.pixel);
+
+	XChangeProperty(disp, win, WM_WINDOW_TYPE, XA_ATOM, 32,
+			PropModeReplace, (unsigned char*)&WM_WINDOW_TYPE_DOCK, 1);
+
+	XSelectInput(disp, win, ExposureMask);
+
+	XMapWindow(disp, win);
+	XFlush(disp);
+
+	gc = XCreateGC(disp, win, 0, 0);
+	XSetForeground(disp, gc, font.pixel);
+	XSetBackground(disp, gc, back.pixel);
+
+	for(i = 0; i < strings_len; i++){
+		strings[i].font = XLoadQueryFont(disp, strings[i].font_name);
+		if(!strings[i].font){
+			fprintf(stderr, "Unable to load font \"%s\", using default font\n", strings[i].font_name);
+			strings[i].font = XLoadQueryFont(disp, "fixed");
+		}
+		XSetFont(disp, gc, strings[i].font->fid);
+		free(strings[i].font_name);
+	}
+
+	return 0;
+}
+
+int parse_config(char *path)
+{
+	config_t config;
+
+	config_init(&config);
+	if(!config_read_file(&config, path)){
+		fprintf(stderr, "No config file could be found, using default settings\n");
+		config_destroy(&config);
+
+		strings = malloc(sizeof(bar_text));
+		strings_len = 1;
+
+		strings->command = malloc(sizeof(DEFAULT_COMMAND));
+		strcpy(strings->command, DEFAULT_COMMAND);
+		strings->font_name = malloc(sizeof(DEFAULT_FONT));
+		strcpy(strings->font_name, DEFAULT_FONT);
+		strings->align = DEFAULT_ALIGN;
+		strings->x = DEFAULT_X;
+		strings->y = DEFAULT_Y;
+		strings->width = DEFAULT_WIDTH;
+
+		return -1;
+	}
+
+	if(!config_lookup_int(&config, "delay", &delay)){
+		delay = DEFAULT_DELAY;
+	}
+	config_lookup_string(&config, "color.foreground", (const char**)&fg_color);
+	config_lookup_string(&config, "color.background", (const char**)&bg_color);
+	
+	config_destroy(&config);
+	
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
-	char config_path[256] = DEFAULT_CONFIG, font[256] = DEFAULT_FONT, *command, *output;
-	int opt, len, verbose, ready, delay, x, y, width, height;
-	config_t cfg;
+	char *config_path;
+	int opt, ready;
 
-	command = output = NULL;
-	verbose = ready = x = y = 0;
-	delay = 1;
+	x = DEFAULT_X;
+	y = DEFAULT_Y;
 	width = DEFAULT_WIDTH;
 	height = DEFAULT_HEIGHT;
 
-	while((opt = getopt(argc, argv, "hvd:e:s:l:p:f:")) != -1){
+	config_path = NULL;
+	while((opt = getopt(argc, argv, "p:h")) != -1){
 		switch(opt){
-			case 'f':
-				if(verbose){
-					printf("Font:\t\t\"%s\"\n", optarg);
-				}
-				strcpy(font, optarg);
-				break;
 			case 'p':
-				if(verbose){
-					printf("Config file:\t\"%s\"\n", optarg);
-				}
+				config_path = malloc(strlen(optarg));
 				strcpy(config_path, optarg);
-				break;
-			case 's':
-				if(verbose){
-					printf("Size:\t\t\"%s\"\n", optarg);
-				}
-				sscanf(optarg, "%dx%d", &width, &height);
-				break;
-			case 'l':
-				if(verbose){
-					printf("Location:\t\"%s\"\n", optarg);
-				}
-				sscanf(optarg, "%dx%d", &x, &y);
-				break;
-			case 'e':
-				if(verbose){
-					printf("Command:\t\"%s\"\n", optarg);
-				}
-				command = malloc(strlen(optarg));
-				strcpy(command, optarg);
-				break;
-			case 'd':
-				if(verbose){
-					printf("Refresh delay:\t%s seconds", optarg);
-				}
-				delay = atoi(optarg);
-				break;
-			case 'v':
-				verbose = 1;
 				break;
 			case 'h':
 				printf("Usage:\n"
-						"\txbar [-h][-v][-d int][-e str]"
-						"[-s intxint][-p str][-f str]\n\n"
+						"\txbar [-h][-s filename]\n\n"
 
 						"\t[-h]\t\tshow help\n"
-						"\t[-v]\t\tshow verbose output\n"
-						"\t[-d int]\tset the refresh delay in seconds\n"
-						"\t[-e str]\tset the command to execute\n"
-						"\t[-s intxint]\tset the width and the height\n"
-						"\t[-l intxint]\tset the location\n"
-						"\t[-p str]\tset the path for the config file\n"
-						"\t[-f str]\tset the font using the X font style\n"
-						);
+						"\t[-p filename]\tset the config file\n"
+					  );
 				return 0;
 			case '?':
 				return 1;
@@ -177,21 +204,27 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if(!config_read_file(&cfg, config_path)){
-		fprintf(stderr, "No config file could be found, using default settings");
-		config_destroy(&cfg);
-	}else{
-		
+	if(config_path == NULL){
+		config_path = malloc(sizeof(DEFAULT_CONFIG));
+		strcpy(config_path, DEFAULT_CONFIG);
 	}
 
-	if(command == NULL){
-		// Use default command
-		command = malloc(sizeof(DEFAULT_COMMAND));
-		strcpy(command, DEFAULT_COMMAND);
+	fg_color = bg_color = NULL;
+	parse_config(config_path);
+	free(config_path);
+
+	if(fg_color == NULL){
+		fg_color = malloc(sizeof(DEFAULT_FGCOLOR));
+		strcpy(fg_color, DEFAULT_FGCOLOR);
+	}
+	if(bg_color == NULL){
+		bg_color = malloc(sizeof(DEFAULT_BGCOLOR));
+		strcpy(bg_color, DEFAULT_BGCOLOR);
 	}
 
-	create_bar(x, y, width, height, "#CCCCCC", font);
+	create_bar(x, y, width, height, fg_color, bg_color);
 
+	ready = 0;
 	while(!ready){
 		XEvent e;
 		XNextEvent(disp, &e);
@@ -201,17 +234,13 @@ int main(int argc, char **argv)
 	}
 
 	while(1){
-		len = sys_output(&output, command);
-		draw_bar(width, height, output, len - 1);
-		free(output);
+		draw_bars(height);
 		sleep(delay);
 	}
 
 	XFreeGC(disp, gc);
 	XUnmapWindow(disp, win);
 	XCloseDisplay(disp);
-
-	free(command);
 
 	return 0;
 }
