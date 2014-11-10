@@ -39,7 +39,7 @@ text = ( {
 		command = "date +%x";
 		font = "fixed";
 		location = (0, 0);
-		max_chars = 100;
+		width = 1280;
 		align = "right";
 	}
 );
