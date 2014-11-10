@@ -10,7 +10,8 @@ Example
 
 `xbar -p "xbar.cfg"`
 
-With this as a default config file:
+With this as a example config file named `xbar.cfg`:
+
 ```cfg
 location = (0, 0);
 size = (1280, 16);
