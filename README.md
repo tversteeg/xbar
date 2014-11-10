@@ -16,16 +16,15 @@ With this as a example config file named `xbar.cfg`:
 location = (0, 0);
 size = (1280, 16);
 delay = 1;
-font = "-*-terminus-*-r-*-*-12-*-*-*-*-*-*-*";
 
 colors = {
 	background = "#CCCCCC";
-	text = "#000000";
+	foreground = "#000000";
 };
 
 text = ( {
 		command = "echo 'xbar'";
-		font = "fixed";
+		font = "-*-terminus-*-r-*-*-12-*-*-*-*-*-*-*";
 		location = (0, 0);
 		width = 1280;
 		align = "left";
