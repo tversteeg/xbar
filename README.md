@@ -36,7 +36,7 @@ text = ( {
 		width = 1280;
 		align = "middle";
 	}, {
-		command = "sh ~/.config/rightText.sh";
+		command = "date +%x";
 		font = "fixed";
 		location = (0, 0);
 		max_chars = 100;
