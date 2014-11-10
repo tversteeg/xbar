@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #define DEFAULT_COMMAND "echo \"$(date +%T)\"" // Show the time in hh:mm:ss
-#define DEFAULT_CONFIG  "/home/thomas/.config/xbar.cfg"
+#define DEFAULT_CONFIG  "xbar.cfg"
 #define DEFAULT_X       0
 #define DEFAULT_Y       0
 #define DEFAULT_WIDTH   800
@@ -24,13 +24,13 @@ typedef struct {
 	XFontStruct *font;
 	int x, y, width;
 	char align;
-} bar_text;
+} bar_t;
 
 Window win;
 Display *disp;
 GC gc;
-bar_text *strings;
-size_t strings_len;
+bar_t *bars;
+size_t bars_len;
 char *fg_color, *bg_color;
 int delay, x, y, width, height;
 
@@ -68,18 +68,18 @@ int draw_bars(int height)
 	output = NULL;
 
 	XClearWindow(disp, win);
-	for(i = 0; i < strings_len; i++){
-		len = sys_output(&output, strings[i].command);
+	for(i = 0; i < bars_len; i++){
+		len = sys_output(&output, bars[i].command) - 1;
 
-		XTextExtents(strings[i].font, output, len, &direction, 
+		XTextExtents(bars[i].font, output, len, &direction, 
 				&ascent, &descent, &overall);
 
-		x = strings[i].x;
-		y = strings[i].y + (height >> 1) + ((ascent - descent) >> 1);
-		if(strings[i].align == 1){
-			x = strings[i].x + (strings[i].width - overall.width) >> 1;
-		}else if(strings[i].align == 2){
-			x = strings[i]. x + strings[i].width - overall.width;
+		x = bars[i].x;
+		y = bars[i].y + (height >> 1) + ((ascent - descent) >> 1);
+		if(bars[i].align == 1){
+			x = bars[i].x + ((bars[i].width - overall.width) >> 1);
+		}else if(bars[i].align == 2){
+			x = bars[i]. x + bars[i].width - overall.width;
 		}
 
 		XDrawString(disp, win, gc, x, y, output, len);
@@ -125,14 +125,13 @@ int create_bar(int x, int y, int width, int height, char *font_color, char *back
 	XSetForeground(disp, gc, font.pixel);
 	XSetBackground(disp, gc, back.pixel);
 
-	for(i = 0; i < strings_len; i++){
-		strings[i].font = XLoadQueryFont(disp, strings[i].font_name);
-		if(!strings[i].font){
-			fprintf(stderr, "Unable to load font \"%s\", using default font\n", strings[i].font_name);
-			strings[i].font = XLoadQueryFont(disp, "fixed");
+	for(i = 0; i < bars_len; i++){
+		bars[i].font = XLoadQueryFont(disp, bars[i].font_name);
+		if(!bars[i].font){
+			fprintf(stderr, "Unable to load font \"%s\", using default font\n", bars[i].font_name);
+			bars[i].font = XLoadQueryFont(disp, "fixed");
 		}
-		XSetFont(disp, gc, strings[i].font->fid);
-		free(strings[i].font_name);
+		XSetFont(disp, gc, bars[i].font->fid);
 	}
 
 	return 0;
@@ -141,8 +140,11 @@ int create_bar(int x, int y, int width, int height, char *font_color, char *back
 int parse_config(char *path)
 {
 	config_t config;
-	config_setting_t *setting;
-	int i;
+	config_setting_t *setting, *elem;
+	bar_t *bar;
+	const char *str;
+
+	int i, len;
 
 	config_init(&config);
 	if(!config_read_file(&config, path)){
@@ -151,16 +153,16 @@ int parse_config(char *path)
 				config_error_line(&config), config_error_text(&config));
 		config_destroy(&config);
 
-		strings = malloc(sizeof(bar_text));
-		strings_len = 1;
-		strings->command = malloc(sizeof(DEFAULT_COMMAND));
-		strcpy(strings->command, DEFAULT_COMMAND);
-		strings->font_name = malloc(sizeof(DEFAULT_FONT));
-		strcpy(strings->font_name, DEFAULT_FONT);
-		strings->align = DEFAULT_ALIGN;
-		strings->x = DEFAULT_X;
-		strings->y = DEFAULT_Y;
-		strings->width = DEFAULT_WIDTH;
+		bars = malloc(sizeof(bar_t));
+		bars_len = 1;
+		bars->command = malloc(sizeof(DEFAULT_COMMAND));
+		strcpy(bars->command, DEFAULT_COMMAND);
+		bars->font_name = malloc(sizeof(DEFAULT_FONT));
+		strcpy(bars->font_name, DEFAULT_FONT);
+		bars->align = DEFAULT_ALIGN;
+		bars->x = DEFAULT_X;
+		bars->y = DEFAULT_Y;
+		bars->width = DEFAULT_WIDTH;
 
 		return -1;
 	}
@@ -185,19 +187,63 @@ int parse_config(char *path)
 	}
 
 	setting = config_lookup(&config, "text");
-	if(setting != NULL){
+	if(setting == NULL){
 		fprintf(stderr, "No \"text\" field in the config supplied,"
 				" using default clock\n");
 		config_destroy(&config);
 
-		strings = malloc(sizeof(bar_text));
-		strings_len = 1;
-		strings->command = malloc(sizeof(DEFAULT_COMMAND));
-		strcpy(strings->command, DEFAULT_COMMAND);
-		strings->font_name = malloc(sizeof(DEFAULT_FONT));
-		strcpy(strings->font_name, DEFAULT_FONT);
+		bars = malloc(sizeof(bar_t));
+		bars_len = 1;
+		bars->command = malloc(sizeof(DEFAULT_COMMAND));
+		strcpy(bars->command, DEFAULT_COMMAND);
+		bars->font_name = malloc(sizeof(DEFAULT_FONT));
+		strcpy(bars->font_name, DEFAULT_FONT);
 
 		return -1;
+	}
+
+	len = config_setting_length(setting);
+	bars = malloc(sizeof(bar_t) * len);
+	bars_len = len;
+
+	for(i = 0; i < len; i++){
+		bar = bars + i;
+		elem = config_setting_get_elem(setting, i);
+
+		if(!config_setting_lookup_string(elem, "command", &str)){
+			bar->command = malloc(sizeof(DEFAULT_COMMAND));
+			strcpy(bar->command, DEFAULT_COMMAND);
+		}else{
+			bar->command = malloc(strlen(str));
+			strcpy(bar->command, str);
+		}
+		if(!config_setting_lookup_string(elem, "font", &str)){
+			bar->font_name = malloc(sizeof(DEFAULT_FONT));
+			strcpy(bar->font_name, DEFAULT_FONT);
+		}else{
+			bar->font_name = malloc(strlen(str));
+			strcpy(bar->font_name, str);
+		}
+		if(!config_setting_lookup_string(elem, "align", &str)){
+			bar->align = DEFAULT_ALIGN;
+		}else{
+			if(strcmp(str, "left") == 0){
+				bar->align = 0;
+			}else if(strcmp(str, "middle") == 0){
+				bar->align = 1;
+			}else{
+				bar->align = 2;
+			}
+		}
+		if(!config_setting_lookup_int(elem, "x", &bar->x)){
+			bar->x = DEFAULT_X;
+		}
+		if(!config_setting_lookup_int(elem, "y", &bar->y)){
+			bar->y = DEFAULT_Y;
+		}
+		if(!config_setting_lookup_int(elem, "width", &bar->width)){
+			bar->width = DEFAULT_WIDTH;
+		}
 	}
 	
 	config_destroy(&config);
