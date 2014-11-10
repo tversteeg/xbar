@@ -7,7 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define DEFAULT_COMMAND "echo \"xbar - $(date +%T)\"" // Show the time in hh:mm:ss
+#define DEFAULT_COMMAND "echo \"$(date +%T)\"" // Show the time in hh:mm:ss
 #define DEFAULT_CONFIG  "~/.config/xbar.cfg"
 #define DEFAULT_X       0
 #define DEFAULT_Y       0
@@ -71,7 +71,8 @@ int draw_bars(int height)
 	for(i = 0; i < strings_len; i++){
 		len = sys_output(&output, strings[i].command);
 
-		XTextExtents(strings[i].font, output, len, &direction, &ascent, &descent, &overall);
+		XTextExtents(strings[i].font, output, len, &direction, 
+				&ascent, &descent, &overall);
 
 		x = strings[i].x;
 		y = strings[i].y + (height >> 1) + ((ascent - descent) >> 1);
@@ -140,15 +141,18 @@ int create_bar(int x, int y, int width, int height, char *font_color, char *back
 int parse_config(char *path)
 {
 	config_t config;
+	config_setting_t *setting;
+	int i;
 
 	config_init(&config);
 	if(!config_read_file(&config, path)){
-		fprintf(stderr, "No config file could be found, using default settings\n");
+		fprintf(stderr, "Error in loading config \"%s\" on line %d: %s\n"
+				"Using default settings\n", path,
+				config_error_line(&config), config_error_text(&config));
 		config_destroy(&config);
 
 		strings = malloc(sizeof(bar_text));
 		strings_len = 1;
-
 		strings->command = malloc(sizeof(DEFAULT_COMMAND));
 		strcpy(strings->command, DEFAULT_COMMAND);
 		strings->font_name = malloc(sizeof(DEFAULT_FONT));
@@ -161,11 +165,40 @@ int parse_config(char *path)
 		return -1;
 	}
 
+	config_lookup_string(&config, "foreground", (const char**)&fg_color);
+	config_lookup_string(&config, "background", (const char**)&bg_color);
+
 	if(!config_lookup_int(&config, "delay", &delay)){
 		delay = DEFAULT_DELAY;
 	}
-	config_lookup_string(&config, "color.foreground", (const char**)&fg_color);
-	config_lookup_string(&config, "color.background", (const char**)&bg_color);
+	if(!config_lookup_int(&config, "x", &x)){
+		x = DEFAULT_X;
+	}
+	if(!config_lookup_int(&config, "y", &y)){
+		y = DEFAULT_Y;
+	}
+	if(!config_lookup_int(&config, "width", &width)){
+		width = DEFAULT_WIDTH;
+	}
+	if(!config_lookup_int(&config, "height", &height)){
+		height = DEFAULT_HEIGHT;
+	}
+
+	setting = config_lookup(&config, "text");
+	if(setting != NULL){
+		fprintf(stderr, "No \"text\" field in the config supplied,"
+				" using default clock\n");
+		config_destroy(&config);
+
+		strings = malloc(sizeof(bar_text));
+		strings_len = 1;
+		strings->command = malloc(sizeof(DEFAULT_COMMAND));
+		strcpy(strings->command, DEFAULT_COMMAND);
+		strings->font_name = malloc(sizeof(DEFAULT_FONT));
+		strcpy(strings->font_name, DEFAULT_FONT);
+
+		return -1;
+	}
 	
 	config_destroy(&config);
 	
@@ -177,7 +210,6 @@ int main(int argc, char **argv)
 	char *config_path;
 	int opt, ready;
 
-	x = DEFAULT_X;
 	y = DEFAULT_Y;
 	width = DEFAULT_WIDTH;
 	height = DEFAULT_HEIGHT;
