@@ -13,36 +13,40 @@ Example
 With this as a example config file named `xbar.cfg`:
 
 ```cfg
-location = (0, 0);
-size = (1280, 16);
 delay = 1;
-
-colors = {
-	background = "#CCCCCC";
-	foreground = "#000000";
-};
+x = 0;
+y = 0;
+width = 1280;
+height = 16;
+background = "#CCCCCC";
+foreground = "#000000";
 
 text = ( {
 		command = "echo 'xbar'";
-		font = "-*-terminus-*-r-*-*-12-*-*-*-*-*-*-*";
-		location = (0, 0);
-		width = 1280;
+		font = "fixed";
+		x = 0;
+		y = 0;
 		align = "left";
 	}, {
 		command = "date +%T";
 		font = "fixed";
-		location = (0, 0);
+		x = 0;
+		y = 0;
 		width = 1280;
 		align = "middle";
 	}, {
 		command = "date +%x";
 		font = "fixed";
-		location = (0, 0);
+		x = 0;
+		y = 0;
 		width = 1280;
 		align = "right";
 	}
 );
 ```
+Which should create something like this (only bigger):
+
+![Screenshot](http://i.imgur.com/IAFWopF.png)
 
 Setup
 ===
