@@ -317,12 +317,15 @@ int main(int argc, char **argv)
 		strcpy(config_path, DEFAULT_CONFIG);
 	}
 
+	/* Set the configuration constants and populate the textfields */
 	parse_config(config_path);
 	free(config_path);
 
+	/* Create the bar using xlib and load the font */
 	create_bar(x, y, width, height, fg_color, bg_color);
 
 	ready = 0;
+	/* Watch for the first Expose event so the bar can be drawn */
 	while(!ready){
 		XEvent e;
 		XNextEvent(disp, &e);
@@ -331,11 +334,13 @@ int main(int argc, char **argv)
 		}
 	}
 
+	/* Redraw the bar with an interval set by delay */
 	while(1){
 		draw_bars(height);
 		sleep(delay);
 	}
 
+	/* Free the xlib values */
 	XFreeGC(disp, gc);
 	XUnmapWindow(disp, win);
 	XCloseDisplay(disp);
