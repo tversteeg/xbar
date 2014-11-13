@@ -7,18 +7,33 @@
 #include <string.h>
 #include <unistd.h>
 
-#define DEFAULT_COMMAND "echo \"$(date +%T)\"" // Show the time in hh:mm:ss
+/* The command to execute, this is the text that gets displayed on the bar */
+#define DEFAULT_COMMAND "echo \"$(date +%T)\""
+/* The location of the configuration file */
 #define DEFAULT_CONFIG  "xbar.cfg"
+/* The x location of the bar */
 #define DEFAULT_X       0
+/* The y location of the bar */
 #define DEFAULT_Y       0
+/* The width of the bar */
 #define DEFAULT_WIDTH   800
+/* The height of the bar */
 #define DEFAULT_HEIGHT  16
-#define DEFAULT_FONT    "fixed" // Default font
-#define DEFAULT_DELAY   1 // 1 second
-#define DEFAULT_ALIGN	1 // Middle
+/* The x11 font to use, fixed is the systems default font */
+#define DEFAULT_FONT    "fixed"
+/* The delay in seconds */
+#define DEFAULT_DELAY   1
+/* The alignment of the textfield, possible values:
+ * 0: left
+ * 1: middle
+ * 2: right */
+#define DEFAULT_ALIGN	1
+/* The color of the text */
 #define DEFAULT_FGCOLOR "#FFFFFF"
+/* The color of the bar */
 #define DEFAULT_BGCOLOR "#000000"
 
+/* The structure which resembles a textfield */
 typedef struct {
 	char *command, *font_name;
 	XFontStruct *font;
@@ -34,20 +49,24 @@ size_t bars_len;
 char *fg_color, *bg_color;
 int delay, x, y, width, height;
 
+/* Execute the command to get the output in the stdin as a string */
 int sys_output(char **buf, char *command)
 {
 	FILE *fp;
 	char output[1035];
 	int size;
 
+	/* Execute the command */
 	fp = popen(command, "r");
 	if(fp == NULL){
 		fprintf(stderr, "Failed to run command: %s\n", command);
 		exit(1);
 	}
 
+	/* Read the output from the command's filepointer */
 	fgets(output, sizeof(output) - 1, fp);
 
+	/* Copy the command into the buffer */
 	size = strlen(output);
 	*buf = malloc(size);
 	strcpy(*buf, output);
@@ -58,6 +77,7 @@ int sys_output(char **buf, char *command)
 	return size;
 }
 
+/* The update function to draw the textfields */
 int draw_bars(int height)
 {
 	int i, x, y, direction, ascent, descent;
@@ -67,13 +87,17 @@ int draw_bars(int height)
 
 	output = NULL;
 
+	/* Clear the old textfields */
 	XClearWindow(disp, win);
 	for(i = 0; i < bars_len; i++){
+		/* Get the return value of the command */
 		len = sys_output(&output, bars[i].command) - 1;
 
+		/* Get the text geometry */
 		XTextExtents(bars[i].font, output, len, &direction, 
 				&ascent, &descent, &overall);
 
+		/* Set the text position according to alignment */
 		x = bars[i].x;
 		y = bars[i].y + (height >> 1) + ((ascent - descent) >> 1);
 		if(bars[i].align == 1){
@@ -82,15 +106,18 @@ int draw_bars(int height)
 			x = bars[i]. x + bars[i].width - overall.width;
 		}
 
+		/* Draw the textfield */
 		XDrawString(disp, win, gc, x, y, output, len);
 
 		free(output);
 	}
+	/* Sync the display to show it correctly */
 	XSync(disp, True);
 
 	return 0;
 }
 
+/* Create the background bar using xlib and load the fonts */
 int create_bar(int x, int y, int width, int height, char *font_color, char *back_color)
 {
 	Atom WM_WINDOW_TYPE, WM_WINDOW_TYPE_DOCK;
@@ -98,33 +125,43 @@ int create_bar(int x, int y, int width, int height, char *font_color, char *back
 	Colormap colormap;
 	int i, screen;
 
+	/* Open the default display */
 	disp = XOpenDisplay(NULL);
 	screen = DefaultScreen(disp);
 
+	/* Load the atoms to set the window type to
+	 * This makes sure no decoration is drawn */
 	WM_WINDOW_TYPE = XInternAtom(disp, "_NET_WM_WINDOW_TYPE", False);
 	WM_WINDOW_TYPE_DOCK = XInternAtom(disp, "_NET_WM_WINDOW_TYPE_DOCK", False);
 
+	/* Load the colors as xlib values */
 	colormap = DefaultColormap(disp, 0);
 	XParseColor(disp, colormap, font_color, &font);
 	XAllocColor(disp, colormap, &font);	
 	XParseColor(disp, colormap, back_color, &back);
 	XAllocColor(disp, colormap, &back);	
 
+	/* Create the bar background */
 	win = XCreateSimpleWindow(disp, RootWindow(disp, screen), x, y, 
 			width, height, 0, font.pixel,  back.pixel);
 
+	/* Set it to the window type with the atoms from above */
 	XChangeProperty(disp, win, WM_WINDOW_TYPE, XA_ATOM, 32,
 			PropModeReplace, (unsigned char*)&WM_WINDOW_TYPE_DOCK, 1);
 
+	/* It only reacts to exposure events */
 	XSelectInput(disp, win, ExposureMask);
 
+	/* Actually display the bar */
 	XMapWindow(disp, win);
 	XFlush(disp);
 
+	/* Create a drawing area for the textfields */
 	gc = XCreateGC(disp, win, 0, 0);
 	XSetForeground(disp, gc, font.pixel);
 	XSetBackground(disp, gc, back.pixel);
 
+	/* Load each font from each textfield */
 	for(i = 0; i < bars_len; i++){
 		bars[i].font = XLoadQueryFont(disp, bars[i].font_name);
 		if(!bars[i].font){
