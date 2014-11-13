@@ -317,18 +317,8 @@ int main(int argc, char **argv)
 		strcpy(config_path, DEFAULT_CONFIG);
 	}
 
-	fg_color = bg_color = NULL;
 	parse_config(config_path);
 	free(config_path);
-
-	if(fg_color == NULL){
-		fg_color = malloc(sizeof(DEFAULT_FGCOLOR));
-		strcpy(fg_color, DEFAULT_FGCOLOR);
-	}
-	if(bg_color == NULL){
-		bg_color = malloc(sizeof(DEFAULT_BGCOLOR));
-		strcpy(bg_color, DEFAULT_BGCOLOR);
-	}
 
 	create_bar(x, y, width, height, fg_color, bg_color);
 
