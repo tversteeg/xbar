@@ -137,6 +137,7 @@ int create_bar(int x, int y, int width, int height, char *font_color, char *back
 	return 0;
 }
 
+/* Try to load the libconfig style configuration file and parse it */
 int parse_config(char *path)
 {
 	config_t config;
@@ -147,6 +148,7 @@ int parse_config(char *path)
 	int i, len;
 
 	config_init(&config);
+	/* Try to open the file and use the default settings when it fails */
 	if(!config_read_file(&config, path)){
 		fprintf(stderr, "Error in loading config \"%s\" on line %d: %s\n"
 				"Using default settings\n", path,
@@ -167,25 +169,45 @@ int parse_config(char *path)
 		return -1;
 	}
 
-	config_lookup_string(&config, "foreground", (const char**)&fg_color);
-	config_lookup_string(&config, "background", (const char**)&bg_color);
+	/* Try to load the color of the fonts */
+	if(!config_lookup_string(&config, "foreground", &str)){
+		fg_color = malloc(sizeof(DEFAULT_FGCOLOR));
+		strcpy(fg_color, DEFAULT_FGCOLOR);
+	}else{
+		fg_color = malloc(strlen(str));
+		strcpy(fg_color, str);
+	}
+	/* Try to load the color of the background of the bar */
+	if(!config_lookup_string(&config, "background", &str)){
+		bg_color = malloc(sizeof(DEFAULT_BGCOLOR));
+		strcpy(bg_color, DEFAULT_BGCOLOR);
+	}else{
+		bg_color = malloc(strlen(str));
+		strcpy(bg_color, str);
+	}
 
+	/* Try to load the delay the bar text refreshes in seconds */
 	if(!config_lookup_int(&config, "delay", &delay)){
 		delay = DEFAULT_DELAY;
 	}
+	/* Try to load the x position of the bar */
 	if(!config_lookup_int(&config, "x", &x)){
 		x = DEFAULT_X;
 	}
+	/* Try to load the y position of the bar */
 	if(!config_lookup_int(&config, "y", &y)){
 		y = DEFAULT_Y;
 	}
+	/* Try to load the width of the bar */
 	if(!config_lookup_int(&config, "width", &width)){
 		width = DEFAULT_WIDTH;
 	}
+	/* Try to load the height of the bar */
 	if(!config_lookup_int(&config, "height", &height)){
 		height = DEFAULT_HEIGHT;
 	}
 
+	/* Try to load the text commands/settings */
 	setting = config_lookup(&config, "text");
 	if(setting == NULL){
 		fprintf(stderr, "No \"text\" field in the config supplied,"
@@ -205,11 +227,12 @@ int parse_config(char *path)
 	len = config_setting_length(setting);
 	bars = malloc(sizeof(bar_t) * len);
 	bars_len = len;
-
+	/* Try to load and loop through the different textfields */
 	for(i = 0; i < len; i++){
 		bar = bars + i;
 		elem = config_setting_get_elem(setting, i);
 
+		/* Try to load the command to execute of the textfield */
 		if(!config_setting_lookup_string(elem, "command", &str)){
 			bar->command = malloc(sizeof(DEFAULT_COMMAND));
 			strcpy(bar->command, DEFAULT_COMMAND);
@@ -217,6 +240,7 @@ int parse_config(char *path)
 			bar->command = malloc(strlen(str));
 			strcpy(bar->command, str);
 		}
+		/* Try to load the X11 style font of the textfield */
 		if(!config_setting_lookup_string(elem, "font", &str)){
 			bar->font_name = malloc(sizeof(DEFAULT_FONT));
 			strcpy(bar->font_name, DEFAULT_FONT);
@@ -224,6 +248,7 @@ int parse_config(char *path)
 			bar->font_name = malloc(strlen(str));
 			strcpy(bar->font_name, str);
 		}
+		/* Try to load the alignment of the textfield */
 		if(!config_setting_lookup_string(elem, "align", &str)){
 			bar->align = DEFAULT_ALIGN;
 		}else{
@@ -235,19 +260,22 @@ int parse_config(char *path)
 				bar->align = 2;
 			}
 		}
+		/* Try to load the x position of the textfield */
 		if(!config_setting_lookup_int(elem, "x", &bar->x)){
 			bar->x = DEFAULT_X;
 		}
+		/* Try to load the y position of the textfield */
 		if(!config_setting_lookup_int(elem, "y", &bar->y)){
 			bar->y = DEFAULT_Y;
 		}
+		/* Try to load the maximum width of the textfield */
 		if(!config_setting_lookup_int(elem, "width", &bar->width)){
-			bar->width = DEFAULT_WIDTH;
+			bar->width = width;
 		}
 	}
-	
+
 	config_destroy(&config);
-	
+
 	return 0;
 }
 
@@ -261,6 +289,7 @@ int main(int argc, char **argv)
 	height = DEFAULT_HEIGHT;
 
 	config_path = NULL;
+	/* Loop through the arguments to display helpfiles or save the configuration file's path */
 	while((opt = getopt(argc, argv, "p:h")) != -1){
 		switch(opt){
 			case 'p':
@@ -282,6 +311,7 @@ int main(int argc, char **argv)
 		}
 	}
 
+	/* Use default path if none is supplied */
 	if(config_path == NULL){
 		config_path = malloc(sizeof(DEFAULT_CONFIG));
 		strcpy(config_path, DEFAULT_CONFIG);
