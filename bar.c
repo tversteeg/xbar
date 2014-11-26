@@ -41,7 +41,7 @@ typedef struct {
 	char align;
 } bar_t;
 
-Window win;
+Window win, tray;
 Display *disp;
 GC gc;
 bar_t *bars;
@@ -117,8 +117,44 @@ int draw_bars(int height)
 	return 0;
 }
 
+int init_tray()
+{
+	char atom_name[32];
+	Atom SYSTEM_TRAY;
+	XEvent e;
+	Window root;
+
+	tray = XCreateWindow(disp, win, 0, 0, 1, 1, 0, 
+			CopyFromParent, InputOnly, 0, 0, 0);
+
+	snprintf(atom_name, sizeof(atom_name),
+			"_NET_SYSTEM_TRAY_S%u",	DefaultScreen(disp));
+
+	SYSTEM_TRAY = XInternAtom(disp, atom_name, False);
+
+	XSetSelectionOwner(disp, SYSTEM_TRAY, tray, CurrentTime);
+
+	root = RootWindow(disp, DefaultScreen(disp));
+
+	e.xclient.type = ClientMessage;
+	e.xclient.message_type = XInternAtom(disp, "MANAGER", False);
+	e.xclient.display = disp;
+	e.xclient.window = root;
+	e.xclient.format = 32;
+	e.xclient.data.l[0] = CurrentTime;
+	e.xclient.data.l[1] = SYSTEM_TRAY;
+	e.xclient.data.l[2] = tray;
+	e.xclient.data.l[3] = 0l;
+	e.xclient.data.l[4] = 0l;
+
+	XSendEvent(disp, root, False, StructureNotifyMask, &e);
+
+	return 0;
+}
+
 /* Create the background bar using xlib and load the fonts */
-int create_bar(int x, int y, int width, int height, char *font_color, char *back_color)
+int create_bar(int x, int y, int width, int height,
+		char *font_color, char *back_color)
 {
 	Atom WM_WINDOW_TYPE, WM_WINDOW_TYPE_DOCK;
 	XColor back, font;
@@ -165,7 +201,8 @@ int create_bar(int x, int y, int width, int height, char *font_color, char *back
 	for(i = 0; i < bars_len; i++){
 		bars[i].font = XLoadQueryFont(disp, bars[i].font_name);
 		if(!bars[i].font){
-			fprintf(stderr, "Unable to load font \"%s\", using default font\n", bars[i].font_name);
+			fprintf(stderr, "Unable to load font \"%s\", using default font\n",
+				   bars[i].font_name);
 			bars[i].font = XLoadQueryFont(disp, "fixed");
 		}
 		XSetFont(disp, gc, bars[i].font->fid);
@@ -360,6 +397,9 @@ int main(int argc, char **argv)
 
 	/* Create the bar using xlib and load the font */
 	create_bar(x, y, width, height, fg_color, bg_color);
+
+	/* Capture the system tray */
+	init_tray();
 
 	ready = 0;
 	/* Watch for the first Expose event so the bar can be drawn */
